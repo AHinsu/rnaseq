@@ -1,21 +1,36 @@
 #!/bin/bash
-#SBATCH --job-name=mark_duplicates
-#SBATCH --output=logs/05_mark_duplicates_%A_%a.out
-#SBATCH --error=logs/05_mark_duplicates_%A_%a.err
-#SBATCH --time=8:00:00
+#SBATCH --job-name=05-mark_duplicates
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
+#SBATCH --time=8:00:00
 #SBATCH --partition=compute
 #SBATCH --array=1-N  # Replace N with the number of UNIQUE samples
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # Picard MarkDuplicates - Mark duplicate reads
 # This script marks duplicate reads in BAM files using Picard MarkDuplicates
+# Load conda environment
+# Input parameters
+# Create output directories
+
+printf "\n\nStarted: mark_duplicates\n\n"
+pwd
+date
+printf "\n\n"
 
 set -euo pipefail
 
-# Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+# Load required modules and activate conda environment
+# Uncomment and modify the following line if using environment modules:
+# module load apps/anaconda-4.7.12.tcl
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
+
 
 # Input parameters
 SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
@@ -79,3 +94,7 @@ samtools idxstats ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam > ${SAMPLE_DIR}/${SAM
 samtools stats ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.stats.txt
 
 echo "Picard MarkDuplicates completed for ${SAMPLE_NAME} at $(date)"
+
+printf "\n\nCompleted: mark_duplicates\n\n"
+pwd
+date

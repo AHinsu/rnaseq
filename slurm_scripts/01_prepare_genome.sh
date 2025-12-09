@@ -1,20 +1,32 @@
 #!/bin/bash
-#SBATCH --job-name=prepare_genome
-#SBATCH --output=logs/01_prepare_genome_%j.out
-#SBATCH --error=logs/01_prepare_genome_%j.err
-#SBATCH --time=24:00:00
+#SBATCH --job-name=01-prepare_genome
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
+#SBATCH --time=24:00:00
 #SBATCH --partition=compute
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # Genome Preparation Script for RNA-seq Pipeline
 # This script prepares reference genome files including STAR and Salmon indices
+# Usage: sbatch 01_prepare_genome.sh
+
+printf "\n\nStarted: Genome Preparation\n\n"
+pwd
+date
+printf "\n\n"
 
 set -euo pipefail
 
-# Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+# Load required modules and activate conda environment
+# Uncomment and modify the following line if using environment modules:
+# module load apps/anaconda-4.7.12.tcl
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
 
 # Input parameters - modify these for your setup
 GENOME_FASTA="${GENOME_FASTA:-/path/to/genome.fa}"
@@ -75,3 +87,7 @@ echo "Genome preparation completed at $(date)"
 echo "STAR index: ${OUTPUT_DIR}/star_index"
 echo "Salmon index: ${OUTPUT_DIR}/salmon_index"
 echo "Kallisto index: ${OUTPUT_DIR}/kallisto_index"
+
+printf "\n\nCompleted: Genome Preparation\n\n"
+pwd
+date

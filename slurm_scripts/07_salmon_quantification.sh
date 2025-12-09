@@ -1,21 +1,36 @@
 #!/bin/bash
-#SBATCH --job-name=salmon_quant
-#SBATCH --output=logs/05_salmon_quant_%A_%a.out
-#SBATCH --error=logs/05_salmon_quant_%A_%a.err
-#SBATCH --time=4:00:00
+#SBATCH --job-name=07-salmon_quantification
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
+#SBATCH --time=4:00:00
 #SBATCH --partition=compute
 #SBATCH --array=1-N  # Replace N with the number of UNIQUE samples
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # Salmon Quantification from STAR Transcriptome BAM
 # This script quantifies transcript abundance using Salmon in alignment-based mode
+# Load conda environment
+# Input parameters
+# Create output directories
+
+printf "\n\nStarted: salmon_quantification\n\n"
+pwd
+date
+printf "\n\n"
 
 set -euo pipefail
 
-# Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+# Load required modules and activate conda environment
+# Uncomment and modify the following line if using environment modules:
+# module load apps/anaconda-4.7.12.tcl
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
+
 
 # Input parameters
 SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
@@ -94,3 +109,7 @@ SALMON_CMD="${SALMON_CMD} \
 eval ${SALMON_CMD}
 
 echo "Salmon quantification completed for ${SAMPLE_NAME} at $(date)"
+
+printf "\n\nCompleted: salmon_quantification\n\n"
+pwd
+date

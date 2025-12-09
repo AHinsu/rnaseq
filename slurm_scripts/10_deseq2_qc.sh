@@ -1,20 +1,29 @@
 #!/bin/bash
-#SBATCH --job-name=deseq2_qc
-#SBATCH --output=logs/10_deseq2_qc_%j.out
-#SBATCH --error=logs/10_deseq2_qc_%j.err
+#SBATCH --job-name=10-deseq2_qc
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --time=2:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --partition=compute
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # DESeq2 QC Plots
 # This script generates QC plots (PCA, sample correlation) using DESeq2
 
+
+printf "\n\nStarted: deseq2_qc\n\n"
+pwd
+date
+printf "\n\n"
 set -euo pipefail
 
 # Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
 
 # Input parameters
 COUNTS_FILE="${COUNTS_FILE:-./results/tximport/salmon_gene_counts.tsv}"
@@ -324,3 +333,7 @@ Rscript ${OUTPUT_DIR}/run_deseq2_qc.R \
     "${SAMPLESHEET}"
 
 echo "DESeq2 QC completed at $(date)"
+
+printf "\n\nCompleted: deseq2_qc\n\n"
+pwd
+date

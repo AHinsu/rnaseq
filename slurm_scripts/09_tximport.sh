@@ -1,20 +1,29 @@
 #!/bin/bash
-#SBATCH --job-name=tximport
-#SBATCH --output=logs/09_tximport_%j.out
-#SBATCH --error=logs/09_tximport_%j.err
+#SBATCH --job-name=09-tximport
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --time=2:00:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --partition=compute
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # tximport - Import and Summarize Transcript-Level Quantifications
 # This script imports Salmon and Kallisto quantifications and summarizes to gene level
 
+
+printf "\n\nStarted: tximport\n\n"
+pwd
+date
+printf "\n\n"
 set -euo pipefail
 
 # Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
 
 # Input parameters
 UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
@@ -185,3 +194,7 @@ if [ "${QUANT_TYPE}" == "kallisto" ] || [ "${QUANT_TYPE}" == "both" ]; then
 fi
 
 echo "tximport completed at $(date)"
+
+printf "\n\nCompleted: tximport\n\n"
+pwd
+date

@@ -1,6 +1,12 @@
 #!/bin/bash
 # Prepare Samplesheet - Create unique samples list and merge file paths
 # This script processes the input samplesheet to handle multiple FASTQ files per sample
+# Usage: bash 00_prepare_samplesheet.sh samplesheet.csv output_dir
+
+printf "\n\nStarted: Prepare Samplesheet\n\n"
+pwd
+date
+printf "\n\n"
 
 set -euo pipefail
 
@@ -52,3 +58,7 @@ echo ""
 echo "Use these files for array job submission:"
 echo "  - Set array size to 1-${N_SAMPLES}"
 echo "  - Use samples_unique.txt and sample_files.tsv in scripts"
+
+printf "\n\nCompleted: Prepare Samplesheet\n\n"
+pwd
+date

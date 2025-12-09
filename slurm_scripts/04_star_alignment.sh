@@ -1,21 +1,36 @@
 #!/bin/bash
-#SBATCH --job-name=star_align
-#SBATCH --output=logs/04_star_align_%A_%a.out
-#SBATCH --error=logs/04_star_align_%A_%a.err
-#SBATCH --time=12:00:00
+#SBATCH --job-name=04-star_alignment
+#SBATCH --output=logs/job-%j.%x.out
+#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
+#SBATCH --time=12:00:00
 #SBATCH --partition=compute
 #SBATCH --array=1-N  # Replace N with the number of UNIQUE samples
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # STAR Alignment
 # This script aligns trimmed reads to the reference genome using STAR
+# Load conda environment
+# Input parameters
+# Create output directories
+
+printf "\n\nStarted: star_alignment\n\n"
+pwd
+date
+printf "\n\n"
 
 set -euo pipefail
 
-# Load conda environment
-source $(conda info --base)/etc/profile.d/conda.sh
+# Load required modules and activate conda environment
+# Uncomment and modify the following line if using environment modules:
+# module load apps/anaconda-4.7.12.tcl
+eval "$(conda shell.bash hook)"
 conda activate rnaseq
+unset PYTHONPATH
+
 
 # Input parameters
 SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
@@ -108,3 +123,7 @@ samtools idxstats ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam > $
 samtools stats ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}_stats.txt
 
 echo "STAR alignment completed for ${SAMPLE_NAME} at $(date)"
+
+printf "\n\nCompleted: star_alignment\n\n"
+pwd
+date

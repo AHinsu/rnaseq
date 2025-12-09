@@ -245,7 +245,40 @@ Edit the `#SBATCH` directives in each script to match your cluster configuration
 #SBATCH --mem=64G             # Memory
 #SBATCH --time=12:00:00       # Time limit
 #SBATCH --partition=compute   # Your partition name
+#SBATCH --mail-user=user@example.com  # Your email for notifications
 ```
+
+### Centralized Logging
+
+All scripts use a centralized logging format compatible with SLURM job tracking:
+
+```bash
+#SBATCH --output=logs/job-%j.%x.out  # %j = job ID, %x = job name
+#SBATCH --error=logs/job-%j.%x.err
+```
+
+Logs are named as: `job-<JOBID>.<JOBNAME>.out` (e.g., `job-12345.04-star_alignment.out`)
+
+### Email Notifications
+
+All scripts include email notification settings. Edit the `--mail-user` directive:
+
+```bash
+#SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=your.email@institution.edu  # EDIT THIS
+```
+
+To disable email notifications, change `--mail-type=ALL` to `--mail-type=NONE`.
+
+### Module Loading
+
+If your cluster uses environment modules, uncomment and modify this line in each script:
+
+```bash
+# module load apps/anaconda-4.7.12.tcl
+```
+
+Scripts use `eval "$(conda shell.bash hook)"` for conda activation, which is compatible with most systems.
 
 ### Adjusting Tool Parameters
 
