@@ -114,11 +114,19 @@ Raw FASTQ Files
       ↓
       ├─→ [STAR] ← Genome alignment
       │     ↓
+      │   [MarkDuplicates] ← Mark duplicate reads (Picard)
+      │     ↓
+      │   [StringTie] ← Transcript assembly and quantification
+      │     ↓
       │   [Salmon] ← Transcript quantification (alignment-based)
       │
       └─→ [Kallisto] ← Pseudo-alignment and quantification
-      
-[MultiQC] ← Comprehensive QC report
+            ↓
+          [tximport] ← Import and summarize to gene-level
+            ↓
+          [DESeq2 QC] ← PCA and correlation plots
+            ↓
+          [MultiQC] ← Comprehensive QC report
 ```
 
 ## Output Structure
@@ -133,6 +141,15 @@ results/
 │       ├── sample1_Aligned.toTranscriptome.out.bam
 │       ├── sample1_Log.final.out
 │       └── sample1_ReadsPerGene.out.tab
+├── markduplicates/      # Picard MarkDuplicates output
+│   └── sample1/
+│       ├── sample1.markdup.bam
+│       └── sample1.MarkDuplicates.metrics.txt
+├── stringtie/           # StringTie transcript assembly
+│   └── sample1/
+│       ├── sample1.transcripts.gtf
+│       ├── sample1.gene.abundance.txt
+│       └── sample1.coverage.gtf
 ├── salmon/              # Salmon quantification (from STAR)
 │   └── sample1/
 │       ├── quant.sf
@@ -141,6 +158,15 @@ results/
 │   └── sample1/
 │       ├── abundance.tsv
 │       └── abundance.h5
+├── tximport/            # tximport gene-level summaries
+│   ├── salmon_gene_counts.tsv
+│   ├── salmon_gene_tpm.tsv
+│   ├── kallisto_gene_counts.tsv
+│   └── kallisto_gene_tpm.tsv
+├── deseq2_qc/           # DESeq2 QC plots
+│   ├── deseq2_pca_plot.png
+│   ├── deseq2_sample_correlation_heatmap.png
+│   └── deseq2_sample_distance_heatmap.png
 └── multiqc/             # MultiQC report
     └── rnaseq_multiqc_report.html
 ```
@@ -159,9 +185,13 @@ results/
 | `02_fastqc_raw.sh` | QC on raw reads | 4 CPUs, 8GB RAM, 4h |
 | `03_fastp_trimming.sh` | Trim and filter reads | 8 CPUs, 16GB RAM, 6h |
 | `04_star_alignment.sh` | Align to genome | 16 CPUs, 64GB RAM, 12h |
-| `05_salmon_quantification.sh` | Quantify with Salmon | 8 CPUs, 16GB RAM, 4h |
-| `06_kallisto_quantification.sh` | Quantify with Kallisto | 8 CPUs, 16GB RAM, 4h |
-| `07_multiqc_report.sh` | Generate QC report | 4 CPUs, 8GB RAM, 2h |
+| `05_mark_duplicates.sh` | Mark duplicate reads | 4 CPUs, 32GB RAM, 8h |
+| `06_stringtie.sh` | Transcript assembly | 8 CPUs, 16GB RAM, 6h |
+| `07_salmon_quantification.sh` | Quantify with Salmon | 8 CPUs, 16GB RAM, 4h |
+| `08_kallisto_quantification.sh` | Quantify with Kallisto | 8 CPUs, 16GB RAM, 4h |
+| `09_tximport.sh` | Import transcript counts | 4 CPUs, 16GB RAM, 2h |
+| `10_deseq2_qc.sh` | Generate QC plots | 4 CPUs, 16GB RAM, 2h |
+| `11_multiqc_report.sh` | Generate QC report | 4 CPUs, 8GB RAM, 2h |
 | `submit_pipeline.sh` | Automated submission | - |
 
 ## Tool Versions
@@ -170,6 +200,8 @@ results/
 - fastp: 0.24.0
 - STAR: 2.7.11b
 - Samtools: 1.21
+- Picard: 3.1.1
+- StringTie: 2.2.3
 - Salmon: 1.10.3
 - Kallisto: 0.51.1
 - MultiQC: 1.31

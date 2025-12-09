@@ -10,9 +10,13 @@ The pipeline follows these steps:
 2. **Quality Control (Raw)** - FastQC on raw reads
 3. **Trimming/Filtering** - fastp for adapter trimming and quality filtering
 4. **Alignment** - STAR alignment to reference genome
-5. **Quantification (STAR-Salmon)** - Salmon quantification from STAR transcriptome BAM
-6. **Quantification (Kallisto)** - Kallisto pseudo-alignment and quantification
-7. **MultiQC Report** - Comprehensive quality control report
+5. **Duplicate Marking** - Picard MarkDuplicates to mark duplicate reads
+6. **Transcript Assembly** - StringTie for transcript assembly and quantification
+7. **Quantification (STAR-Salmon)** - Salmon quantification from STAR transcriptome BAM
+8. **Quantification (Kallisto)** - Kallisto pseudo-alignment and quantification
+9. **Gene-Level Import** - tximport to summarize transcript-level to gene-level
+10. **QC Plots** - DESeq2 QC plots (PCA, correlation heatmaps)
+11. **MultiQC Report** - Comprehensive quality control report
 
 ## Requirements
 
