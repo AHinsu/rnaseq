@@ -49,27 +49,27 @@ mkdir -p logs
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
 # Get sample info
-SAMPLE_LINE=$(grep "^${SAMPLE_NAME}	" ${SAMPLE_FILES})
+SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
 
 # Parse CSV line
 IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting StringTie for sample: ${SAMPLE_NAME}"
+echo "Starting StringTie for sample: ${SAMPLE}	"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Strandedness: ${STRANDEDNESS}"
 echo "Timestamp: $(date)"
 
 # Create sample output directory
-SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE_NAME}"
+SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE}	"
 mkdir -p ${SAMPLE_DIR}
 
 # Determine input BAM (use deduplicated if available, otherwise original STAR BAM)
-if [ -f "${INPUT_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.markdup.bam" ]; then
-    INPUT_BAM="${INPUT_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}.markdup.bam"
-elif [ -f "${INPUT_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam" ]; then
-    INPUT_BAM="${INPUT_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam"
+if [ -f "${INPUT_DIR}/${SAMPLE}	/${SAMPLE_NAME}.markdup.bam" ]; then
+    INPUT_BAM="${INPUT_DIR}/${SAMPLE}	/${SAMPLE_NAME}.markdup.bam"
+elif [ -f "${INPUT_DIR}/${SAMPLE}	/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam" ]; then
+    INPUT_BAM="${INPUT_DIR}/${SAMPLE}	/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam"
 else
-    echo "ERROR: No input BAM found for ${SAMPLE_NAME}"
+    echo "ERROR: No input BAM found for ${SAMPLE}	"
     exit 1
 fi
 
@@ -95,20 +95,20 @@ STRINGTIE_CMD="stringtie ${INPUT_BAM} ${STRAND_FLAG}"
 if [ -n "${GTF_FILE}" ] && [ -f "${GTF_FILE}" ]; then
     STRINGTIE_CMD="${STRINGTIE_CMD} \
         -G ${GTF_FILE} \
-        -C ${SAMPLE_DIR}/${SAMPLE_NAME}.coverage.gtf \
-        -b ${SAMPLE_DIR}/${SAMPLE_NAME}.ballgown"
+        -C ${SAMPLE_DIR}/${SAMPLE}	.coverage.gtf \
+        -b ${SAMPLE_DIR}/${SAMPLE}	.ballgown"
 fi
 
 STRINGTIE_CMD="${STRINGTIE_CMD} \
-    -o ${SAMPLE_DIR}/${SAMPLE_NAME}.transcripts.gtf \
-    -A ${SAMPLE_DIR}/${SAMPLE_NAME}.gene.abundance.txt \
+    -o ${SAMPLE_DIR}/${SAMPLE}	.transcripts.gtf \
+    -A ${SAMPLE_DIR}/${SAMPLE}	.gene.abundance.txt \
     -p ${THREADS} \
     -e"
 
 # Run StringTie
 eval ${STRINGTIE_CMD}
 
-echo "StringTie completed for ${SAMPLE_NAME} at $(date)"
+echo "StringTie completed for ${SAMPLE}	 at $(date)"
 
 printf "\n\nCompleted: stringtie\n\n"
 pwd

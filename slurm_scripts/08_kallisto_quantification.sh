@@ -50,25 +50,25 @@ mkdir -p logs
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
 # Get sample info
-SAMPLE_LINE=$(grep "^${SAMPLE_NAME}	" ${SAMPLE_FILES})
+SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
 
 # Parse CSV line
 IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting Kallisto quantification for sample: ${SAMPLE_NAME}"
+echo "Starting Kallisto quantification for sample: ${SAMPLE}	"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Strandedness: ${STRANDEDNESS}"
 echo "Timestamp: $(date)"
 
 # Create sample output directory
-SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE_NAME}"
+SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE}	"
 mkdir -p ${SAMPLE_DIR}
 
 # Determine input files (trimmed)
 if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ]; then
     # Paired-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}_1.fastp.fastq.gz"
-    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE_NAME}_2.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}	_1.fastp.fastq.gz"
+    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE}	_2.fastp.fastq.gz"
     
     # Determine strand flag for Kallisto
     case ${STRANDEDNESS} in
@@ -93,7 +93,7 @@ if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ]; then
         ${TRIMMED_R1} ${TRIMMED_R2}
 else
     # Single-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}	.fastp.fastq.gz"
     
     # For single-end, need fragment length and SD (estimates)
     FRAG_LEN="${FRAG_LEN:-200}"
@@ -125,7 +125,7 @@ else
         ${TRIMMED_R1}
 fi
 
-echo "Kallisto quantification completed for ${SAMPLE_NAME} at $(date)"
+echo "Kallisto quantification completed for ${SAMPLE}	 at $(date)"
 
 printf "\n\nCompleted: kallisto_quantification\n\n"
 pwd

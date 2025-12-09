@@ -50,12 +50,12 @@ mkdir -p logs
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
 # Get sample info
-SAMPLE_LINE=$(grep "^${SAMPLE_NAME}	" ${SAMPLE_FILES})
+SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
 
 # Parse CSV line
 IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting Salmon quantification for sample: ${SAMPLE_NAME}"
+echo "Starting Salmon quantification for sample: ${SAMPLE}	"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Strandedness: ${STRANDEDNESS}"
 echo "Timestamp: $(date)"
@@ -80,7 +80,7 @@ case ${STRANDEDNESS} in
 esac
 
 # Transcriptome BAM from STAR
-TRANSCRIPTOME_BAM="${STAR_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_Aligned.toTranscriptome.out.bam"
+TRANSCRIPTOME_BAM="${STAR_DIR}/${SAMPLE}	/${SAMPLE_NAME}_Aligned.toTranscriptome.out.bam"
 
 if [ ! -f "${TRANSCRIPTOME_BAM}" ]; then
     echo "ERROR: Transcriptome BAM not found: ${TRANSCRIPTOME_BAM}"
@@ -92,7 +92,7 @@ SALMON_CMD="salmon quant \
     -t ${SALMON_INDEX}/transcripts.bin \
     -l ${LIB_TYPE} \
     -a ${TRANSCRIPTOME_BAM} \
-    -o ${OUTPUT_DIR}/${SAMPLE_NAME} \
+    -o ${OUTPUT_DIR}/${SAMPLE}	 \
     --threads ${THREADS}"
 
 # Add GTF if provided
@@ -108,7 +108,7 @@ SALMON_CMD="${SALMON_CMD} \
 # Run Salmon quantification
 eval ${SALMON_CMD}
 
-echo "Salmon quantification completed for ${SAMPLE_NAME} at $(date)"
+echo "Salmon quantification completed for ${SAMPLE}	 at $(date)"
 
 printf "\n\nCompleted: salmon_quantification\n\n"
 pwd

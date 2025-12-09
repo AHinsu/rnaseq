@@ -21,6 +21,18 @@ OPTIONS:
     --skip-qc-raw             Skip QC on raw reads
     -h, --help                Show this help message
 
+SAMPLESHEET FORMAT:
+    The samplesheet supports multiple FASTQ file pairs per sample (like Nextflow).
+    Samples with the same name will be automatically merged during processing.
+    
+    Example:
+      sample,fastq_1,fastq_2,strandedness
+      sample1,run1_R1.fq.gz,run1_R2.fq.gz,reverse
+      sample1,run2_R1.fq.gz,run2_R2.fq.gz,reverse
+      sample2,sample2_R1.fq.gz,sample2_R2.fq.gz,reverse
+    
+    Array jobs will scale to unique sample count (2 in example above).
+
 EXAMPLE:
     $0 -s samples.csv -g genome.fa -a annotations.gtf -o results
 

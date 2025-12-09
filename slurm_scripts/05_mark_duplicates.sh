@@ -49,21 +49,21 @@ mkdir -p logs
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
 # Get sample info
-SAMPLE_LINE=$(grep "^${SAMPLE_NAME}	" ${SAMPLE_FILES})
+SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
 
 # Parse CSV line
 IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting Picard MarkDuplicates for sample: ${SAMPLE_NAME}"
+echo "Starting Picard MarkDuplicates for sample: ${SAMPLE}	"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Timestamp: $(date)"
 
 # Create sample output directory
-SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE_NAME}"
+SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE}	"
 mkdir -p ${SAMPLE_DIR}
 
 # Input BAM from STAR
-INPUT_BAM="${STAR_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam"
+INPUT_BAM="${STAR_DIR}/${SAMPLE}	/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam"
 
 if [ ! -f "${INPUT_BAM}" ]; then
     echo "ERROR: Input BAM not found: ${INPUT_BAM}"
@@ -80,8 +80,8 @@ picard \
     -Xmx${AVAIL_MEM}M \
     MarkDuplicates \
     --INPUT ${INPUT_BAM} \
-    --OUTPUT ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam \
-    --METRICS_FILE ${SAMPLE_DIR}/${SAMPLE_NAME}.MarkDuplicates.metrics.txt \
+    --OUTPUT ${SAMPLE_DIR}/${SAMPLE}	.markdup.bam \
+    --METRICS_FILE ${SAMPLE_DIR}/${SAMPLE}	.MarkDuplicates.metrics.txt \
     --REMOVE_DUPLICATES false \
     --ASSUME_SORTED true \
     --CREATE_INDEX true \
@@ -89,11 +89,11 @@ picard \
 
 # Generate alignment statistics on deduplicated BAM
 echo "Generating alignment statistics on deduplicated BAM..."
-samtools flagstat ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.flagstat.txt
-samtools idxstats ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.idxstats.txt
-samtools stats ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.stats.txt
+samtools flagstat ${SAMPLE_DIR}/${SAMPLE}	.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.flagstat.txt
+samtools idxstats ${SAMPLE_DIR}/${SAMPLE}	.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.idxstats.txt
+samtools stats ${SAMPLE_DIR}/${SAMPLE}	.markdup.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}.markdup.stats.txt
 
-echo "Picard MarkDuplicates completed for ${SAMPLE_NAME} at $(date)"
+echo "Picard MarkDuplicates completed for ${SAMPLE}	 at $(date)"
 
 printf "\n\nCompleted: mark_duplicates\n\n"
 pwd
