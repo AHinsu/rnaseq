@@ -16,9 +16,13 @@ dependencies:
   - bioconda::samtools=1.21
   - bioconda::htslib=1.21
   
+  # Duplicate marking
+  - bioconda::picard=3.1.1
+  
   # Quantification
   - bioconda::salmon=1.10.3
   - bioconda::kallisto=0.51.1
+  - bioconda::stringtie=2.2.3
   
   # Annotation Processing
   - bioconda::gffread=0.12.7

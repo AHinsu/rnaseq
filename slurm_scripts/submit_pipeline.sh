@@ -107,7 +107,7 @@ mkdir -p logs
 # Update array sizes in all scripts
 SCRIPT_DIR="$(dirname $0)"
 echo "Updating array sizes in scripts..."
-for script in ${SCRIPT_DIR}/{02,03,04,05,06}_*.sh; do
+for script in ${SCRIPT_DIR}/{02,03,04,05,06,07,08}_*.sh; do
     if [ -f "$script" ]; then
         sed -i "s/#SBATCH --array=1-[0-9]\+/#SBATCH --array=1-${N_SAMPLES}/" "$script"
         echo "  Updated: $(basename $script)"
@@ -115,7 +115,7 @@ for script in ${SCRIPT_DIR}/{02,03,04,05,06}_*.sh; do
 done
 
 # Clean up any backup files
-rm -f ${SCRIPT_DIR}/{02,03,04,05,06}_*.sh.bak 2>/dev/null || true
+rm -f ${SCRIPT_DIR}/{02,03,04,05,06,07,08}_*.sh.bak 2>/dev/null || true
 
 # Track job IDs
 declare -A JOB_IDS
@@ -178,7 +178,32 @@ JOB_STAR=$(sbatch --parsable ${STAR_DEPS} \
 JOB_IDS[STAR]=$JOB_STAR
 echo "  Job ID: ${JOB_STAR}"
 
-# Step 5: Salmon quantification
+# Step 5: Mark duplicates with Picard
+echo ""
+echo "Submitting Picard MarkDuplicates..."
+MARKDUP_DEPS="--dependency=afterok:${JOB_STAR}"
+JOB_MARKDUP=$(sbatch --parsable ${MARKDUP_DEPS} \
+    --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,OUTPUT_DIR=${OUTDIR}/markduplicates \
+    ${SCRIPT_DIR}/05_mark_duplicates.sh)
+JOB_IDS[MARKDUP]=$JOB_MARKDUP
+echo "  Job ID: ${JOB_MARKDUP}"
+
+# Step 6: StringTie transcript assembly
+echo ""
+echo "Submitting StringTie..."
+STRINGTIE_DEPS="--dependency=afterok:${JOB_MARKDUP}"
+if [ ! -z "${GTF_FILE}" ]; then
+    GTF_EXPORT=",GTF_FILE=${GTF_FILE}"
+else
+    GTF_EXPORT=""
+fi
+JOB_STRINGTIE=$(sbatch --parsable ${STRINGTIE_DEPS} \
+    --export=SAMPLESHEET=${SAMPLESHEET},INPUT_DIR=${OUTDIR}/markduplicates${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/stringtie \
+    ${SCRIPT_DIR}/06_stringtie.sh)
+JOB_IDS[STRINGTIE]=$JOB_STRINGTIE
+echo "  Job ID: ${JOB_STRINGTIE}"
+
+# Step 7: Salmon quantification
 echo ""
 echo "Submitting Salmon quantification..."
 SALMON_DEPS="--dependency=afterok:${JOB_STAR}"
@@ -194,11 +219,11 @@ fi
 
 JOB_SALMON=$(sbatch --parsable ${SALMON_DEPS} \
     --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,SALMON_INDEX=${REFERENCE_DIR}/salmon_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/salmon \
-    ${SCRIPT_DIR}/05_salmon_quantification.sh)
+    ${SCRIPT_DIR}/07_salmon_quantification.sh)
 JOB_IDS[SALMON]=$JOB_SALMON
 echo "  Job ID: ${JOB_SALMON}"
 
-# Step 6: Kallisto quantification
+# Step 8: Kallisto quantification
 echo ""
 echo "Submitting Kallisto quantification..."
 KALLISTO_DEPS="--dependency=afterok:${JOB_TRIM}"
@@ -207,17 +232,42 @@ if [ ! -z "${JOB_IDS[GENOME]:-}" ]; then
 fi
 JOB_KALLISTO=$(sbatch --parsable ${KALLISTO_DEPS} \
     --export=SAMPLESHEET=${SAMPLESHEET},TRIMMED_DIR=${OUTDIR}/fastp,KALLISTO_INDEX=${REFERENCE_DIR}/kallisto_index/transcripts.idx,OUTPUT_DIR=${OUTDIR}/kallisto \
-    ${SCRIPT_DIR}/06_kallisto_quantification.sh)
+    ${SCRIPT_DIR}/08_kallisto_quantification.sh)
 JOB_IDS[KALLISTO]=$JOB_KALLISTO
 echo "  Job ID: ${JOB_KALLISTO}"
 
-# Step 7: MultiQC report
+# Step 9: tximport
+echo ""
+echo "Submitting tximport..."
+TXIMPORT_DEPS="--dependency=afterok:${JOB_SALMON}:${JOB_KALLISTO}"
+if [ ! -z "${GTF_FILE}" ]; then
+    GTF_EXPORT=",GTF_FILE=${GTF_FILE}"
+else
+    GTF_EXPORT=""
+fi
+JOB_TXIMPORT=$(sbatch --parsable ${TXIMPORT_DEPS} \
+    --export=SAMPLESHEET=${SAMPLESHEET},SALMON_DIR=${OUTDIR}/salmon,KALLISTO_DIR=${OUTDIR}/kallisto${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/tximport \
+    ${SCRIPT_DIR}/09_tximport.sh)
+JOB_IDS[TXIMPORT]=$JOB_TXIMPORT
+echo "  Job ID: ${JOB_TXIMPORT}"
+
+# Step 10: DESeq2 QC
+echo ""
+echo "Submitting DESeq2 QC..."
+DESEQ2_DEPS="--dependency=afterok:${JOB_TXIMPORT}"
+JOB_DESEQ2=$(sbatch --parsable ${DESEQ2_DEPS} \
+    --export=COUNTS_FILE=${OUTDIR}/tximport/salmon_gene_counts.tsv,OUTPUT_DIR=${OUTDIR}/deseq2_qc,SAMPLESHEET=${SAMPLESHEET} \
+    ${SCRIPT_DIR}/10_deseq2_qc.sh)
+JOB_IDS[DESEQ2]=$JOB_DESEQ2
+echo "  Job ID: ${JOB_DESEQ2}"
+
+# Step 11: MultiQC report
 echo ""
 echo "Submitting MultiQC report generation..."
 JOB_MULTIQC=$(sbatch --parsable \
-    --dependency=afterok:${JOB_SALMON}:${JOB_KALLISTO} \
+    --dependency=afterok:${JOB_STRINGTIE}:${JOB_DESEQ2} \
     --export=RESULTS_DIR=${OUTDIR},OUTPUT_DIR=${OUTDIR}/multiqc \
-    ${SCRIPT_DIR}/07_multiqc_report.sh)
+    ${SCRIPT_DIR}/11_multiqc_report.sh)
 JOB_IDS[MULTIQC]=$JOB_MULTIQC
 echo "  Job ID: ${JOB_MULTIQC}"
 
@@ -229,13 +279,17 @@ echo "========================================"
 echo "All jobs have been submitted with dependencies."
 echo ""
 echo "Job Summary:"
-[ ! -z "${JOB_IDS[GENOME]:-}" ] && echo "  Genome Prep: ${JOB_IDS[GENOME]}"
-[ ! -z "${JOB_IDS[QC_RAW]:-}" ] && echo "  QC Raw:      ${JOB_IDS[QC_RAW]}"
-echo "  Trimming:    ${JOB_IDS[TRIM]}"
-echo "  STAR:        ${JOB_IDS[STAR]}"
-echo "  Salmon:      ${JOB_IDS[SALMON]}"
-echo "  Kallisto:    ${JOB_IDS[KALLISTO]}"
-echo "  MultiQC:     ${JOB_IDS[MULTIQC]}"
+[ ! -z "${JOB_IDS[GENOME]:-}" ] && echo "  Genome Prep:   ${JOB_IDS[GENOME]}"
+[ ! -z "${JOB_IDS[QC_RAW]:-}" ] && echo "  QC Raw:        ${JOB_IDS[QC_RAW]}"
+echo "  Trimming:      ${JOB_IDS[TRIM]}"
+echo "  STAR:          ${JOB_IDS[STAR]}"
+echo "  MarkDup:       ${JOB_IDS[MARKDUP]}"
+echo "  StringTie:     ${JOB_IDS[STRINGTIE]}"
+echo "  Salmon:        ${JOB_IDS[SALMON]}"
+echo "  Kallisto:      ${JOB_IDS[KALLISTO]}"
+echo "  tximport:      ${JOB_IDS[TXIMPORT]}"
+echo "  DESeq2 QC:     ${JOB_IDS[DESEQ2]}"
+echo "  MultiQC:       ${JOB_IDS[MULTIQC]}"
 echo ""
 echo "Monitor jobs with: squeue -u \$USER"
 echo "Check logs in: ./logs/"
