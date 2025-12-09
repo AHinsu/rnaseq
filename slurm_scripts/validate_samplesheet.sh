@@ -49,15 +49,11 @@ echo "Validating samples:"
 echo ""
 
 ERROR_COUNT=0
-LINE_NUM=1
+LINE_NUM=0
 
-while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS; do
+# Skip header and process each sample
+tail -n +2 "${SAMPLESHEET}" | while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS; do
     LINE_NUM=$((LINE_NUM + 1))
-    
-    # Skip header
-    if [ ${LINE_NUM} -eq 2 ]; then
-        continue
-    fi
     
     # Skip empty lines
     if [ -z "${SAMPLE}" ]; then
@@ -109,7 +105,7 @@ while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS; do
     
     echo ""
     
-done < "${SAMPLESHEET}"
+done
 
 echo "========================================"
 echo "Validation Summary"

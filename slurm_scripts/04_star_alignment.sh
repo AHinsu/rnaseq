@@ -21,7 +21,7 @@ conda activate rnaseq
 SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
 TRIMMED_DIR="${TRIMMED_DIR:-./results/fastp}"
 STAR_INDEX="${STAR_INDEX:-./reference/star_index}"
-GTF_FILE="${GTF_FILE:-./reference/annotations.gtf}"
+GTF_FILE="${GTF_FILE:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-./results/star}"
 THREADS="${SLURM_CPUS_PER_TASK:-16}"
 
@@ -57,11 +57,18 @@ fi
 
 echo "Input reads: ${READ_FILES}"
 
-# Run STAR alignment
-STAR \
+# Build STAR command
+STAR_CMD="STAR \
     --runThreadN ${THREADS} \
-    --genomeDir ${STAR_INDEX} \
-    --sjdbGTFfile ${GTF_FILE} \
+    --genomeDir ${STAR_INDEX}"
+
+# Add GTF if provided
+if [ -n "${GTF_FILE}" ] && [ -f "${GTF_FILE}" ]; then
+    STAR_CMD="${STAR_CMD} \
+    --sjdbGTFfile ${GTF_FILE}"
+fi
+
+STAR_CMD="${STAR_CMD} \
     --readFilesIn ${READ_FILES} \
     --readFilesCommand zcat \
     --outFileNamePrefix ${SAMPLE_DIR}/${SAMPLE}_ \
@@ -77,7 +84,10 @@ STAR \
     --outFilterMismatchNoverReadLmax 0.04 \
     --alignIntronMin 20 \
     --alignIntronMax 1000000 \
-    --alignMatesGapMax 1000000
+    --alignMatesGapMax 1000000"
+
+# Run STAR alignment
+eval ${STAR_CMD}
 
 # Index the BAM file
 echo "Indexing BAM file..."

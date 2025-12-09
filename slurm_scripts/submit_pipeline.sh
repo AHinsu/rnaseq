@@ -109,10 +109,13 @@ SCRIPT_DIR="$(dirname $0)"
 echo "Updating array sizes in scripts..."
 for script in ${SCRIPT_DIR}/{02,03,04,05,06}_*.sh; do
     if [ -f "$script" ]; then
-        sed -i.bak "s/#SBATCH --array=1-[0-9]\+/#SBATCH --array=1-${N_SAMPLES}/" "$script"
+        sed -i "s/#SBATCH --array=1-[0-9]\+/#SBATCH --array=1-${N_SAMPLES}/" "$script"
         echo "  Updated: $(basename $script)"
     fi
 done
+
+# Clean up any backup files
+rm -f ${SCRIPT_DIR}/{02,03,04,05,06}_*.sh.bak 2>/dev/null || true
 
 # Track job IDs
 declare -A JOB_IDS
@@ -162,8 +165,15 @@ STAR_DEPS="--dependency=afterok:${JOB_TRIM}"
 if [ ! -z "${JOB_IDS[GENOME]:-}" ]; then
     STAR_DEPS="${STAR_DEPS}:${JOB_IDS[GENOME]}"
 fi
+
+# Prepare GTF export if available
+GTF_EXPORT=""
+if [ ! -z "${GTF_FILE}" ]; then
+    GTF_EXPORT=",GTF_FILE=${GTF_FILE}"
+fi
+
 JOB_STAR=$(sbatch --parsable ${STAR_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},TRIMMED_DIR=${OUTDIR}/fastp,STAR_INDEX=${REFERENCE_DIR}/star_index,GTF_FILE=${GTF_FILE},OUTPUT_DIR=${OUTDIR}/star \
+    --export=SAMPLESHEET=${SAMPLESHEET},TRIMMED_DIR=${OUTDIR}/fastp,STAR_INDEX=${REFERENCE_DIR}/star_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/star \
     ${SCRIPT_DIR}/04_star_alignment.sh)
 JOB_IDS[STAR]=$JOB_STAR
 echo "  Job ID: ${JOB_STAR}"
@@ -175,8 +185,15 @@ SALMON_DEPS="--dependency=afterok:${JOB_STAR}"
 if [ ! -z "${JOB_IDS[GENOME]:-}" ]; then
     SALMON_DEPS="${SALMON_DEPS}:${JOB_IDS[GENOME]}"
 fi
+
+# Prepare GTF export if available
+GTF_EXPORT=""
+if [ ! -z "${GTF_FILE}" ]; then
+    GTF_EXPORT=",GTF_FILE=${GTF_FILE}"
+fi
+
 JOB_SALMON=$(sbatch --parsable ${SALMON_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,SALMON_INDEX=${REFERENCE_DIR}/salmon_index,GTF_FILE=${GTF_FILE},OUTPUT_DIR=${OUTDIR}/salmon \
+    --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,SALMON_INDEX=${REFERENCE_DIR}/salmon_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/salmon \
     ${SCRIPT_DIR}/05_salmon_quantification.sh)
 JOB_IDS[SALMON]=$JOB_SALMON
 echo "  Job ID: ${JOB_SALMON}"

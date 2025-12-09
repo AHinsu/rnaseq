@@ -21,7 +21,7 @@ conda activate rnaseq
 SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
 STAR_DIR="${STAR_DIR:-./results/star}"
 SALMON_INDEX="${SALMON_INDEX:-./reference/salmon_index}"
-GTF_FILE="${GTF_FILE:-./reference/annotations.gtf}"
+GTF_FILE="${GTF_FILE:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-./results/salmon}"
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
 
@@ -67,15 +67,25 @@ if [ ! -f "${TRANSCRIPTOME_BAM}" ]; then
     exit 1
 fi
 
-# Run Salmon quantification in alignment-based mode
-salmon quant \
+# Build Salmon command
+SALMON_CMD="salmon quant \
     -t ${SALMON_INDEX}/transcripts.bin \
     -l ${LIB_TYPE} \
     -a ${TRANSCRIPTOME_BAM} \
     -o ${OUTPUT_DIR}/${SAMPLE} \
-    --threads ${THREADS} \
-    -g ${GTF_FILE} \
+    --threads ${THREADS}"
+
+# Add GTF if provided
+if [ -n "${GTF_FILE}" ] && [ -f "${GTF_FILE}" ]; then
+    SALMON_CMD="${SALMON_CMD} \
+    -g ${GTF_FILE}"
+fi
+
+SALMON_CMD="${SALMON_CMD} \
     --seqBias \
-    --gcBias
+    --gcBias"
+
+# Run Salmon quantification
+eval ${SALMON_CMD}
 
 echo "Salmon quantification completed for ${SAMPLE} at $(date)"
