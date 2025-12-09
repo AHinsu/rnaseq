@@ -49,30 +49,22 @@ echo "Validating samples:"
 echo ""
 
 ERROR_COUNT=0
-LINE_NUM=0
+SAMPLE_NUM=0
 
-# Skip header and process each sample
-tail -n +2 "${SAMPLESHEET}" | while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS; do
-    LINE_NUM=$((LINE_NUM + 1))
-    
+# Use process substitution to avoid subshell issue with piping
+while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS; do
     # Skip empty lines
     if [ -z "${SAMPLE}" ]; then
         continue
     fi
     
-    echo "Sample: ${SAMPLE}"
+    SAMPLE_NUM=$((SAMPLE_NUM + 1))
     
-    # Check sample name
-    if [ -z "${SAMPLE}" ]; then
-        echo "  ❌ Empty sample name at line ${LINE_NUM}"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
-    else
-        echo "  ✓ Sample name: ${SAMPLE}"
-    fi
+    echo "Sample ${SAMPLE_NUM}: ${SAMPLE}"
     
     # Check FASTQ_1
     if [ -z "${FASTQ_1}" ]; then
-        echo "  ❌ Missing FASTQ_1 at line ${LINE_NUM}"
+        echo "  ❌ Missing FASTQ_1"
         ERROR_COUNT=$((ERROR_COUNT + 1))
     else
         if [ -f "${FASTQ_1}" ]; then
@@ -105,7 +97,7 @@ tail -n +2 "${SAMPLESHEET}" | while IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRAN
     
     echo ""
     
-done
+done < <(tail -n +2 "${SAMPLESHEET}")
 
 echo "========================================"
 echo "Validation Summary"
