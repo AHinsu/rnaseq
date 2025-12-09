@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=64G
 #SBATCH --partition=compute
-#SBATCH --array=1-N  # Replace N with the number of samples
+#SBATCH --array=1-N  # Replace N with the number of UNIQUE samples
 
 # STAR Alignment
 # This script aligns trimmed reads to the reference genome using STAR
@@ -18,7 +18,8 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate rnaseq
 
 # Input parameters
-SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
+SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
+UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
 TRIMMED_DIR="${TRIMMED_DIR:-./results/fastp}"
 STAR_INDEX="${STAR_INDEX:-./reference/star_index}"
 GTF_FILE="${GTF_FILE:-}"
@@ -29,29 +30,36 @@ THREADS="${SLURM_CPUS_PER_TASK:-16}"
 mkdir -p ${OUTPUT_DIR}
 mkdir -p logs
 
-# Parse samplesheet to get sample info for this array task
-SAMPLE_LINE=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" ${SAMPLESHEET})
+# Get sample name for this array task
+SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
-# Parse CSV line
-IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS <<< "${SAMPLE_LINE}"
+# Get sample info
+SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
+IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting STAR alignment for sample: ${SAMPLE}"
+echo "Starting STAR alignment for sample: ${SAMPLE_NAME}"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Timestamp: $(date)"
 
 # Create sample output directory
-SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE}"
+SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE_NAME}"
 mkdir -p ${SAMPLE_DIR}
 
+# Determine if paired-end or single-end
+IS_PAIRED=false
+if [ -n "${FASTQ_2_FILES}" ] && [ "${FASTQ_2_FILES}" != " " ]; then
+    IS_PAIRED=true
+fi
+
 # Determine input files (trimmed)
-if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ]; then
+if [ "${IS_PAIRED}" = true ]; then
     # Paired-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}_1.fastp.fastq.gz"
-    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE}_2.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}_1.fastp.fastq.gz"
+    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE_NAME}_2.fastp.fastq.gz"
     READ_FILES="${TRIMMED_R1} ${TRIMMED_R2}"
 else
     # Single-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}.fastp.fastq.gz"
     READ_FILES="${TRIMMED_R1}"
 fi
 
@@ -71,7 +79,7 @@ fi
 STAR_CMD="${STAR_CMD} \
     --readFilesIn ${READ_FILES} \
     --readFilesCommand zcat \
-    --outFileNamePrefix ${SAMPLE_DIR}/${SAMPLE}_ \
+    --outFileNamePrefix ${SAMPLE_DIR}/${SAMPLE_NAME}_ \
     --outSAMtype BAM SortedByCoordinate \
     --outSAMunmapped Within \
     --outSAMattributes NH HI AS NM MD \
@@ -91,12 +99,12 @@ eval ${STAR_CMD}
 
 # Index the BAM file
 echo "Indexing BAM file..."
-samtools index ${SAMPLE_DIR}/${SAMPLE}_Aligned.sortedByCoord.out.bam
+samtools index ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam
 
 # Generate alignment statistics
 echo "Generating alignment statistics..."
-samtools flagstat ${SAMPLE_DIR}/${SAMPLE}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE}_flagstat.txt
-samtools idxstats ${SAMPLE_DIR}/${SAMPLE}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE}_idxstats.txt
-samtools stats ${SAMPLE_DIR}/${SAMPLE}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE}_stats.txt
+samtools flagstat ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}_flagstat.txt
+samtools idxstats ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}_idxstats.txt
+samtools stats ${SAMPLE_DIR}/${SAMPLE_NAME}_Aligned.sortedByCoord.out.bam > ${SAMPLE_DIR}/${SAMPLE_NAME}_stats.txt
 
-echo "STAR alignment completed for ${SAMPLE} at $(date)"
+echo "STAR alignment completed for ${SAMPLE_NAME} at $(date)"

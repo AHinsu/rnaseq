@@ -17,7 +17,7 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate rnaseq
 
 # Input parameters
-SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
+UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
 SALMON_DIR="${SALMON_DIR:-./results/salmon}"
 KALLISTO_DIR="${KALLISTO_DIR:-./results/kallisto}"
 GTF_FILE="${GTF_FILE:-}"
@@ -31,6 +31,12 @@ mkdir -p logs
 echo "Starting tximport at $(date)"
 echo "Quantification type: ${QUANT_TYPE}"
 echo "Output directory: ${OUTPUT_DIR}"
+
+# Create a simple CSV from unique samples for R
+echo "sample" > ${OUTPUT_DIR}/samples.csv
+cat ${UNIQUE_SAMPLES} >> ${OUTPUT_DIR}/samples.csv
+
+SAMPLESHEET="${OUTPUT_DIR}/samples.csv"
 
 # Create tx2gene mapping from GTF
 if [ -n "${GTF_FILE}" ] && [ -f "${GTF_FILE}" ]; then

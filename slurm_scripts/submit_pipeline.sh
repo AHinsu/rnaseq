@@ -84,18 +84,10 @@ if [ ! -f "${SAMPLESHEET}" ]; then
     exit 1
 fi
 
-# Count samples
-N_SAMPLES=$(tail -n +2 ${SAMPLESHEET} | wc -l)
-if [ ${N_SAMPLES} -eq 0 ]; then
-    echo "ERROR: No samples found in samplesheet"
-    exit 1
-fi
-
 echo "========================================"
 echo "RNA-seq Pipeline Submission"
 echo "========================================"
 echo "Samplesheet: ${SAMPLESHEET}"
-echo "Number of samples: ${N_SAMPLES}"
 echo "Output directory: ${OUTDIR}"
 echo "Reference directory: ${REFERENCE_DIR}"
 echo "========================================"
@@ -104,8 +96,28 @@ echo "========================================"
 mkdir -p ${OUTDIR}
 mkdir -p logs
 
-# Update array sizes in all scripts
+# Prepare samplesheet - handle multiple FASTQ files per sample
 SCRIPT_DIR="$(dirname $0)"
+echo ""
+echo "Preparing samplesheet..."
+bash ${SCRIPT_DIR}/00_prepare_samplesheet.sh "${SAMPLESHEET}" "${OUTDIR}"
+
+# Use the prepared files
+UNIQUE_SAMPLES="${OUTDIR}/samples_unique.txt"
+SAMPLE_FILES="${OUTDIR}/sample_files.tsv"
+
+# Count unique samples
+N_SAMPLES=$(wc -l < ${UNIQUE_SAMPLES})
+if [ ${N_SAMPLES} -eq 0 ]; then
+    echo "ERROR: No samples found in samplesheet"
+    exit 1
+fi
+
+echo "Number of unique samples: ${N_SAMPLES}"
+echo "========================================"
+
+# Update array sizes in all scripts
+echo ""
 echo "Updating array sizes in scripts..."
 for script in ${SCRIPT_DIR}/{02,03,04,05,06,07,08}_*.sh; do
     if [ -f "$script" ]; then
@@ -143,7 +155,7 @@ if [ "${SKIP_QC_RAW}" = false ]; then
     echo ""
     echo "Submitting FastQC on raw reads..."
     JOB_QC_RAW=$(sbatch --parsable \
-        --export=SAMPLESHEET=${SAMPLESHEET},OUTPUT_DIR=${OUTDIR}/fastqc_raw \
+        --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},OUTPUT_DIR=${OUTDIR}/fastqc_raw \
         ${SCRIPT_DIR}/02_fastqc_raw.sh)
     JOB_IDS[QC_RAW]=$JOB_QC_RAW
     echo "  Job ID: ${JOB_QC_RAW}"
@@ -153,7 +165,7 @@ fi
 echo ""
 echo "Submitting fastp trimming..."
 JOB_TRIM=$(sbatch --parsable \
-    --export=SAMPLESHEET=${SAMPLESHEET},OUTPUT_DIR=${OUTDIR}/fastp \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},OUTPUT_DIR=${OUTDIR}/fastp \
     ${SCRIPT_DIR}/03_fastp_trimming.sh)
 JOB_IDS[TRIM]=$JOB_TRIM
 echo "  Job ID: ${JOB_TRIM}"
@@ -173,7 +185,7 @@ if [ ! -z "${GTF_FILE}" ]; then
 fi
 
 JOB_STAR=$(sbatch --parsable ${STAR_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},TRIMMED_DIR=${OUTDIR}/fastp,STAR_INDEX=${REFERENCE_DIR}/star_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/star \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},TRIMMED_DIR=${OUTDIR}/fastp,STAR_INDEX=${REFERENCE_DIR}/star_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/star \
     ${SCRIPT_DIR}/04_star_alignment.sh)
 JOB_IDS[STAR]=$JOB_STAR
 echo "  Job ID: ${JOB_STAR}"
@@ -183,7 +195,7 @@ echo ""
 echo "Submitting Picard MarkDuplicates..."
 MARKDUP_DEPS="--dependency=afterok:${JOB_STAR}"
 JOB_MARKDUP=$(sbatch --parsable ${MARKDUP_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,OUTPUT_DIR=${OUTDIR}/markduplicates \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},STAR_DIR=${OUTDIR}/star,OUTPUT_DIR=${OUTDIR}/markduplicates \
     ${SCRIPT_DIR}/05_mark_duplicates.sh)
 JOB_IDS[MARKDUP]=$JOB_MARKDUP
 echo "  Job ID: ${JOB_MARKDUP}"
@@ -198,7 +210,7 @@ else
     GTF_EXPORT=""
 fi
 JOB_STRINGTIE=$(sbatch --parsable ${STRINGTIE_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},INPUT_DIR=${OUTDIR}/markduplicates${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/stringtie \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},INPUT_DIR=${OUTDIR}/markduplicates${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/stringtie \
     ${SCRIPT_DIR}/06_stringtie.sh)
 JOB_IDS[STRINGTIE]=$JOB_STRINGTIE
 echo "  Job ID: ${JOB_STRINGTIE}"
@@ -218,7 +230,7 @@ if [ ! -z "${GTF_FILE}" ]; then
 fi
 
 JOB_SALMON=$(sbatch --parsable ${SALMON_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},STAR_DIR=${OUTDIR}/star,SALMON_INDEX=${REFERENCE_DIR}/salmon_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/salmon \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},STAR_DIR=${OUTDIR}/star,SALMON_INDEX=${REFERENCE_DIR}/salmon_index${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/salmon \
     ${SCRIPT_DIR}/07_salmon_quantification.sh)
 JOB_IDS[SALMON]=$JOB_SALMON
 echo "  Job ID: ${JOB_SALMON}"
@@ -231,7 +243,7 @@ if [ ! -z "${JOB_IDS[GENOME]:-}" ]; then
     KALLISTO_DEPS="${KALLISTO_DEPS}:${JOB_IDS[GENOME]}"
 fi
 JOB_KALLISTO=$(sbatch --parsable ${KALLISTO_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},TRIMMED_DIR=${OUTDIR}/fastp,KALLISTO_INDEX=${REFERENCE_DIR}/kallisto_index/transcripts.idx,OUTPUT_DIR=${OUTDIR}/kallisto \
+    --export=SAMPLE_FILES=${SAMPLE_FILES},UNIQUE_SAMPLES=${UNIQUE_SAMPLES},TRIMMED_DIR=${OUTDIR}/fastp,KALLISTO_INDEX=${REFERENCE_DIR}/kallisto_index/transcripts.idx,OUTPUT_DIR=${OUTDIR}/kallisto \
     ${SCRIPT_DIR}/08_kallisto_quantification.sh)
 JOB_IDS[KALLISTO]=$JOB_KALLISTO
 echo "  Job ID: ${JOB_KALLISTO}"
@@ -246,7 +258,7 @@ else
     GTF_EXPORT=""
 fi
 JOB_TXIMPORT=$(sbatch --parsable ${TXIMPORT_DEPS} \
-    --export=SAMPLESHEET=${SAMPLESHEET},SALMON_DIR=${OUTDIR}/salmon,KALLISTO_DIR=${OUTDIR}/kallisto${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/tximport \
+    --export=UNIQUE_SAMPLES=${UNIQUE_SAMPLES},SALMON_DIR=${OUTDIR}/salmon,KALLISTO_DIR=${OUTDIR}/kallisto${GTF_EXPORT},OUTPUT_DIR=${OUTDIR}/tximport \
     ${SCRIPT_DIR}/09_tximport.sh)
 JOB_IDS[TXIMPORT]=$JOB_TXIMPORT
 echo "  Job ID: ${JOB_TXIMPORT}"
@@ -256,7 +268,7 @@ echo ""
 echo "Submitting DESeq2 QC..."
 DESEQ2_DEPS="--dependency=afterok:${JOB_TXIMPORT}"
 JOB_DESEQ2=$(sbatch --parsable ${DESEQ2_DEPS} \
-    --export=COUNTS_FILE=${OUTDIR}/tximport/salmon_gene_counts.tsv,OUTPUT_DIR=${OUTDIR}/deseq2_qc,SAMPLESHEET=${SAMPLESHEET} \
+    --export=COUNTS_FILE=${OUTDIR}/tximport/salmon_gene_counts.tsv,OUTPUT_DIR=${OUTDIR}/deseq2_qc,UNIQUE_SAMPLES=${UNIQUE_SAMPLES} \
     ${SCRIPT_DIR}/10_deseq2_qc.sh)
 JOB_IDS[DESEQ2]=$JOB_DESEQ2
 echo "  Job ID: ${JOB_DESEQ2}"

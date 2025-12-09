@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
 #SBATCH --partition=compute
-#SBATCH --array=1-N  # Replace N with the number of samples
+#SBATCH --array=1-N  # Replace N with the number of UNIQUE samples
 
 # Salmon Quantification from STAR Transcriptome BAM
 # This script quantifies transcript abundance using Salmon in alignment-based mode
@@ -18,7 +18,8 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate rnaseq
 
 # Input parameters
-SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
+SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
+UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
 STAR_DIR="${STAR_DIR:-./results/star}"
 SALMON_INDEX="${SALMON_INDEX:-./reference/salmon_index}"
 GTF_FILE="${GTF_FILE:-}"
@@ -30,12 +31,16 @@ mkdir -p ${OUTPUT_DIR}
 mkdir -p logs
 
 # Parse samplesheet to get sample info for this array task
-SAMPLE_LINE=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" ${SAMPLESHEET})
+# Get sample name for this array task
+SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
+
+# Get sample info
+SAMPLE_LINE=$(grep "^${SAMPLE_NAME}	" ${SAMPLE_FILES})
 
 # Parse CSV line
-IFS=',' read -r SAMPLE FASTQ_1 FASTQ_2 STRANDEDNESS <<< "${SAMPLE_LINE}"
+IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting Salmon quantification for sample: ${SAMPLE}"
+echo "Starting Salmon quantification for sample: ${SAMPLE_NAME}"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Strandedness: ${STRANDEDNESS}"
 echo "Timestamp: $(date)"
@@ -60,7 +65,7 @@ case ${STRANDEDNESS} in
 esac
 
 # Transcriptome BAM from STAR
-TRANSCRIPTOME_BAM="${STAR_DIR}/${SAMPLE}/${SAMPLE}_Aligned.toTranscriptome.out.bam"
+TRANSCRIPTOME_BAM="${STAR_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_Aligned.toTranscriptome.out.bam"
 
 if [ ! -f "${TRANSCRIPTOME_BAM}" ]; then
     echo "ERROR: Transcriptome BAM not found: ${TRANSCRIPTOME_BAM}"
@@ -72,7 +77,7 @@ SALMON_CMD="salmon quant \
     -t ${SALMON_INDEX}/transcripts.bin \
     -l ${LIB_TYPE} \
     -a ${TRANSCRIPTOME_BAM} \
-    -o ${OUTPUT_DIR}/${SAMPLE} \
+    -o ${OUTPUT_DIR}/${SAMPLE_NAME} \
     --threads ${THREADS}"
 
 # Add GTF if provided
@@ -88,4 +93,4 @@ SALMON_CMD="${SALMON_CMD} \
 # Run Salmon quantification
 eval ${SALMON_CMD}
 
-echo "Salmon quantification completed for ${SAMPLE} at $(date)"
+echo "Salmon quantification completed for ${SAMPLE_NAME} at $(date)"

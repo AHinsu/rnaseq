@@ -19,7 +19,7 @@ conda activate rnaseq
 # Input parameters
 COUNTS_FILE="${COUNTS_FILE:-./results/tximport/salmon_gene_counts.tsv}"
 OUTPUT_DIR="${OUTPUT_DIR:-./results/deseq2_qc}"
-SAMPLESHEET="${SAMPLESHEET:-./samplesheet.csv}"
+UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
 
 # Create output directories
 mkdir -p ${OUTPUT_DIR}
@@ -28,6 +28,12 @@ mkdir -p logs
 echo "Starting DESeq2 QC at $(date)"
 echo "Input counts: ${COUNTS_FILE}"
 echo "Output directory: ${OUTPUT_DIR}"
+
+# Create a simple CSV from unique samples for R
+echo "sample" > ${OUTPUT_DIR}/samples.csv
+cat ${UNIQUE_SAMPLES} >> ${OUTPUT_DIR}/samples.csv
+
+SAMPLESHEET="${OUTPUT_DIR}/samples.csv"
 
 # Check if counts file exists
 if [ ! -f "${COUNTS_FILE}" ]; then
