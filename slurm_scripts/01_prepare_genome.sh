@@ -1,12 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=01-prepare_genome
-#SBATCH --output=logs/job-%j.%x.out
-#SBATCH --error=logs/job-%j.%x.err
+#SBATCH --output=/storage/users/ahinsu/sbatch_logs/job-%j.%x.out
+#SBATCH --error=/storage/users/ahinsu/sbatch_logs/job-%j.%x.err
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=24:00:00
-#SBATCH --partition=compute
+#SBATCH --cpus-per-task=40
 #SBATCH --mail-type=ALL              # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
@@ -23,16 +20,16 @@ set -euo pipefail
 
 # Load required modules and activate conda environment
 # Uncomment and modify the following line if using environment modules:
-# module load apps/anaconda-4.7.12.tcl
+module load apps/anaconda-4.7.12.tcl
 eval "$(conda shell.bash hook)"
 conda activate rnaseq
 unset PYTHONPATH
 
 # Input parameters - modify these for your setup
-GENOME_FASTA="${GENOME_FASTA:-/path/to/genome.fa}"
-GTF_FILE="${GTF_FILE:-/path/to/annotations.gtf}"
-OUTPUT_DIR="${OUTPUT_DIR:-./reference}"
-THREADS="${SLURM_CPUS_PER_TASK:-16}"
+GENOME_FASTA="${GENOME_FASTA:-/storage/users/ahinsu/DD-RNAseq/reference/Bos_taurus.chromsomal.fa}"
+GTF_FILE="${GTF_FILE:-/storage/users/ahinsu/DD-RNAseq/reference/Bos_taurus.cleaned.filtered.gtf}"
+OUTPUT_DIR="${OUTPUT_DIR:-/storage/users/ahinsu/DD-RNAseq/pipeline}"
+THREADS="${SLURM_CPUS_PER_TASK:-40}"
 
 # Create output directories
 mkdir -p ${OUTPUT_DIR}/star_index
