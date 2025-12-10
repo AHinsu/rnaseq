@@ -1,0 +1,47 @@
+# Explicit Conda Environment Specification for RNA-seq Pipeline
+# This file contains explicit package versions with build strings for faster environment creation
+# Suitable for older versions of conda that have slow dependency resolution
+# 
+# Usage: conda create -n rnaseq --file environment_explicit.txt
+#
+# Platform: linux-64
+# Generated for: conda 4.x+
+
+# Note: This is a template. You should generate the actual explicit file by:
+# 1. First creating the environment with environment.yml:
+#    conda env create -f environment.yml
+# 2. Then exporting it explicitly:
+#    conda list --explicit > environment_explicit.txt
+#
+# For immediate use, here's a minimal explicit list of core tools:
+
+@EXPLICIT
+# Core tools with explicit URLs (platform: linux-64)
+
+# FastQC
+https://conda.anaconda.org/bioconda/linux-64/fastqc-0.12.1-hdfd78af_0.tar.bz2
+
+# fastp
+https://conda.anaconda.org/bioconda/linux-64/fastp-0.24.0-h5f740d0_2.tar.bz2
+
+# STAR aligner
+https://conda.anaconda.org/bioconda/linux-64/star-2.7.11b-h43eeafb_1.tar.bz2
+
+# Samtools
+https://conda.anaconda.org/bioconda/linux-64/samtools-1.21-h50ea8bc_0.tar.bz2
+https://conda.anaconda.org/bioconda/linux-64/htslib-1.21-h5efdd21_0.tar.bz2
+
+# Salmon
+https://conda.anaconda.org/bioconda/linux-64/salmon-1.10.3-h6dccd9a_2.tar.bz2
+
+# Kallisto
+https://conda.anaconda.org/bioconda/linux-64/kallisto-0.51.1-heb0cbe2_0.tar.bz2
+
+# gffread
+https://conda.anaconda.org/bioconda/linux-64/gffread-0.12.7-hd03093a_2.tar.bz2
+
+# MultiQC
+https://conda.anaconda.org/bioconda/noarch/multiqc-1.31-pyhdfd78af_0.tar.bz2
+
+# NOTE: For R packages and all dependencies, generate the explicit file as described above.
+# The complete explicit file will be ~200-300 lines containing all packages and dependencies.

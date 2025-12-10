@@ -1,0 +1,45 @@
+name: rnaseq
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # Quality Control
+  - bioconda::fastqc=0.12.1
+  - bioconda::multiqc=1.31
+  
+  # Trimming and Filtering
+  - bioconda::fastp=0.24.0
+  
+  # Alignment
+  - bioconda::star=2.7.11b
+  - bioconda::samtools=1.21
+  - bioconda::htslib=1.21
+  
+  # Duplicate marking
+  - bioconda::picard=3.1.1
+  
+  # Quantification
+  - bioconda::salmon=1.10.3
+  - bioconda::kallisto=0.51.1
+  - bioconda::stringtie=2.2.3
+  
+  # Annotation Processing
+  - bioconda::gffread=0.12.7
+  
+  # R and Bioconductor packages for downstream analysis
+  - conda-forge::r-base=4.4.2
+  - conda-forge::r-optparse=1.7.5
+  - conda-forge::r-ggplot2=3.5.1
+  - conda-forge::r-rcolorbrewer=1.1_3
+  - conda-forge::r-pheatmap=1.0.12
+  - bioconda::bioconductor-deseq2=1.46.0
+  - bioconda::bioconductor-tximport=1.34.0
+  - bioconda::bioconductor-tximeta=1.20.1
+  - bioconda::bioconductor-biocparallel=1.40.0
+  - bioconda::bioconductor-complexheatmap=2.22.0
+  
+  # Utilities
+  - conda-forge::gawk=5.1.0
+  - conda-forge::pigz=2.8
+  - conda-forge::parallel=20240722
