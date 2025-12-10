@@ -13,9 +13,8 @@
 
 # Fastp Trimming and Filtering
 # This script performs adapter trimming and quality filtering using fastp
-# Handles multiple FASTQ files per sample by merging them first
-# Load conda environment
-# Input parameters
+# Uses pre-merged files from rawdata directory
+# Usage: sbatch 03_fastp_trimming.sh
 
 printf "\n\nStarted: fastp_trimming\n\n"
 pwd
@@ -31,7 +30,6 @@ eval "$(conda shell.bash hook)"
 conda activate rnaseq
 unset PYTHONPATH
 
-
 # Input parameters
 SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
 UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
@@ -40,69 +38,41 @@ THREADS="${SLURM_CPUS_PER_TASK:-8}"
 
 # Create output directories
 mkdir -p ${OUTPUT_DIR}
-mkdir -p ${OUTPUT_DIR}/merged
 mkdir -p logs
 
 # Get sample name for this array task
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
-# Get all FASTQ files for this sample
+# Get FASTQ files for this sample from rawdata
 SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
-IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
+IFS=$'\t' read -r SAMPLE_NAME FASTQ_1 FASTQ_2 STRANDEDNESS <<< "${SAMPLE_LINE}"
 
 echo "Starting fastp trimming for sample: ${SAMPLE_NAME}"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Timestamp: $(date)"
 
-# Convert space-separated file lists to arrays
-read -ra FASTQ_1_ARRAY <<< "${FASTQ_1_FILES}"
-read -ra FASTQ_2_ARRAY <<< "${FASTQ_2_FILES}"
-
-N_FILES=${#FASTQ_1_ARRAY[@]}
-echo "Number of file sets to process: ${N_FILES}"
+# Check if input files exist
+if [ ! -f "${FASTQ_1}" ]; then
+    echo "ERROR: FASTQ_1 file not found: ${FASTQ_1}"
+    exit 1
+fi
 
 # Determine if paired-end or single-end
 IS_PAIRED=false
-if [ -n "${FASTQ_2_FILES}" ] && [ "${FASTQ_2_FILES}" != " " ]; then
+if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ] && [ -f "${FASTQ_2}" ]; then
     IS_PAIRED=true
-fi
-
-# If multiple files, merge them first; otherwise use directly
-if [ ${N_FILES} -gt 1 ]; then
-    echo "Merging ${N_FILES} file sets for ${SAMPLE_NAME}..."
-    
-    MERGED_R1="${OUTPUT_DIR}/merged/${SAMPLE_NAME}_merged_R1.fastq.gz"
-    MERGED_R2="${OUTPUT_DIR}/merged/${SAMPLE_NAME}_merged_R2.fastq.gz"
-    
-    # Merge R1 files
-    echo "Merging R1 files..."
-    cat "${FASTQ_1_ARRAY[@]}" > "${MERGED_R1}"
-    
-    if [ "${IS_PAIRED}" = true ]; then
-        # Merge R2 files
-        echo "Merging R2 files..."
-        cat "${FASTQ_2_ARRAY[@]}" > "${MERGED_R2}"
-    fi
-    
-    INPUT_R1="${MERGED_R1}"
-    INPUT_R2="${MERGED_R2}"
+    echo "Paired-end detected"
 else
-    # Single file set, use directly
-    INPUT_R1="${FASTQ_1_ARRAY[0]}"
-    if [ "${IS_PAIRED}" = true ]; then
-        INPUT_R2="${FASTQ_2_ARRAY[0]}"
-    else
-        INPUT_R2=""
-    fi
+    echo "Single-end detected"
 fi
 
 # Run fastp
-if [ "${IS_PAIRED}" = true ] && [ -n "${INPUT_R2}" ]; then
+if [ "${IS_PAIRED}" = true ]; then
     # Paired-end
     echo "Running fastp on paired-end reads..."
     fastp \
-        --in1 ${INPUT_R1} \
-        --in2 ${INPUT_R2} \
+        --in1 ${FASTQ_1} \
+        --in2 ${FASTQ_2} \
         --out1 ${OUTPUT_DIR}/${SAMPLE_NAME}_1.fastp.fastq.gz \
         --out2 ${OUTPUT_DIR}/${SAMPLE_NAME}_2.fastp.fastq.gz \
         --json ${OUTPUT_DIR}/${SAMPLE_NAME}.fastp.json \
@@ -116,7 +86,7 @@ else
     # Single-end
     echo "Running fastp on single-end reads..."
     fastp \
-        --in1 ${INPUT_R1} \
+        --in1 ${FASTQ_1} \
         --out1 ${OUTPUT_DIR}/${SAMPLE_NAME}.fastp.fastq.gz \
         --json ${OUTPUT_DIR}/${SAMPLE_NAME}.fastp.json \
         --html ${OUTPUT_DIR}/${SAMPLE_NAME}.fastp.html \
@@ -124,12 +94,6 @@ else
         --qualified_quality_phred 15 \
         --unqualified_percent_limit 40 \
         --length_required 20
-fi
-
-# Clean up merged files if they were created
-if [ ${N_FILES} -gt 1 ]; then
-    echo "Cleaning up temporary merged files..."
-    rm -f "${MERGED_R1}" "${MERGED_R2}"
 fi
 
 echo "Fastp trimming completed for ${SAMPLE_NAME} at $(date)"

@@ -13,9 +13,8 @@
 
 # Kallisto Pseudo-alignment and Quantification
 # This script performs pseudo-alignment and quantification using Kallisto
-# Load conda environment
-# Input parameters
-# Create output directories
+# Uses trimmed reads from fastp output
+# Usage: sbatch 08_kallisto_quantification.sh
 
 printf "\n\nStarted: kallisto_quantification\n\n"
 pwd
@@ -31,7 +30,6 @@ eval "$(conda shell.bash hook)"
 conda activate rnaseq
 unset PYTHONPATH
 
-
 # Input parameters
 SAMPLE_FILES="${SAMPLE_FILES:-./sample_files.tsv}"
 UNIQUE_SAMPLES="${UNIQUE_SAMPLES:-./samples_unique.txt}"
@@ -45,30 +43,29 @@ BOOTSTRAP="${BOOTSTRAP:-100}"
 mkdir -p ${OUTPUT_DIR}
 mkdir -p logs
 
-# Parse samplesheet to get sample info for this array task
 # Get sample name for this array task
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
 # Get sample info
 SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
 
-# Parse CSV line
-IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
+# Parse TSV line
+IFS=$'\t' read -r SAMPLE_NAME FASTQ_1 FASTQ_2 STRANDEDNESS <<< "${SAMPLE_LINE}"
 
-echo "Starting Kallisto quantification for sample: ${SAMPLE}	"
+echo "Starting Kallisto quantification for sample: ${SAMPLE_NAME}"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Strandedness: ${STRANDEDNESS}"
 echo "Timestamp: $(date)"
 
 # Create sample output directory
-SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE}	"
+SAMPLE_DIR="${OUTPUT_DIR}/${SAMPLE_NAME}"
 mkdir -p ${SAMPLE_DIR}
 
 # Determine input files (trimmed)
 if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ]; then
     # Paired-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}	_1.fastp.fastq.gz"
-    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE}	_2.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}_1.fastp.fastq.gz"
+    TRIMMED_R2="${TRIMMED_DIR}/${SAMPLE_NAME}_2.fastp.fastq.gz"
     
     # Determine strand flag for Kallisto
     case ${STRANDEDNESS} in
@@ -93,7 +90,7 @@ if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ]; then
         ${TRIMMED_R1} ${TRIMMED_R2}
 else
     # Single-end
-    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE}	.fastp.fastq.gz"
+    TRIMMED_R1="${TRIMMED_DIR}/${SAMPLE_NAME}.fastp.fastq.gz"
     
     # For single-end, need fragment length and SD (estimates)
     FRAG_LEN="${FRAG_LEN:-200}"
@@ -125,7 +122,7 @@ else
         ${TRIMMED_R1}
 fi
 
-echo "Kallisto quantification completed for ${SAMPLE}	 at $(date)"
+echo "Kallisto quantification completed for ${SAMPLE_NAME} at $(date)"
 
 printf "\n\nCompleted: kallisto_quantification\n\n"
 pwd

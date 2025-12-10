@@ -12,8 +12,7 @@
 #SBATCH --mail-user=user@example.com # Where to send mail (EDIT THIS)
 
 # FastQC Quality Control on Raw Reads
-# This script runs FastQC on raw fastq files as array jobs
-# Handles multiple FASTQ files per sample (e.g., from multiple sequencing runs)
+# This script runs FastQC on raw fastq files from rawdata directory
 # Usage: sbatch 02_fastqc_raw.sh
 
 printf "\n\nStarted: FastQC on Raw Reads\n\n"
@@ -43,51 +42,38 @@ mkdir -p logs
 # Get sample name for this array task
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${UNIQUE_SAMPLES})
 
-# Get all FASTQ files for this sample
+# Get FASTQ files for this sample from rawdata
 SAMPLE_LINE=$(grep "^${SAMPLE}	" ${SAMPLE_FILES})
-IFS=$'\t' read -r SAMPLE_NAME FASTQ_1_FILES FASTQ_2_FILES STRANDEDNESS <<< "${SAMPLE_LINE}"
+IFS=$'\t' read -r SAMPLE_NAME FASTQ_1 FASTQ_2 STRANDEDNESS <<< "${SAMPLE_LINE}"
 
 echo "Starting FastQC for sample: ${SAMPLE_NAME}"
 echo "Array Task ID: ${SLURM_ARRAY_TASK_ID}"
 echo "Timestamp: $(date)"
 
-# Convert space-separated file lists to arrays
-read -ra FASTQ_1_ARRAY <<< "${FASTQ_1_FILES}"
-read -ra FASTQ_2_ARRAY <<< "${FASTQ_2_FILES}"
-
-echo "Number of R1 files: ${#FASTQ_1_ARRAY[@]}"
-if [ -n "${FASTQ_2_FILES}" ] && [ "${FASTQ_2_FILES}" != " " ]; then
-    echo "Number of R2 files: ${#FASTQ_2_ARRAY[@]}"
-fi
-
-# Run FastQC on all FASTQ files for this sample
-ALL_FILES=""
-for fq1 in "${FASTQ_1_ARRAY[@]}"; do
-    if [ -n "${fq1}" ] && [ -f "${fq1}" ]; then
-        ALL_FILES="${ALL_FILES} ${fq1}"
-    fi
-done
-
-# Add R2 files if paired-end
-if [ -n "${FASTQ_2_FILES}" ] && [ "${FASTQ_2_FILES}" != " " ]; then
-    for fq2 in "${FASTQ_2_ARRAY[@]}"; do
-        if [ -n "${fq2}" ] && [ -f "${fq2}" ]; then
-            ALL_FILES="${ALL_FILES} ${fq2}"
-        fi
-    done
-fi
-
-if [ -n "${ALL_FILES}" ]; then
-    echo "Running FastQC on all files for ${SAMPLE_NAME}..."
-    echo "Files: ${ALL_FILES}"
-    fastqc \
-        --threads ${THREADS} \
-        --outdir ${OUTPUT_DIR} \
-        ${ALL_FILES}
-else
-    echo "ERROR: No valid FASTQ files found for ${SAMPLE_NAME}"
+# Check if files exist
+if [ ! -f "${FASTQ_1}" ]; then
+    echo "ERROR: FASTQ_1 file not found: ${FASTQ_1}"
     exit 1
 fi
+
+# Build file list for FastQC
+ALL_FILES="${FASTQ_1}"
+
+# Add R2 file if paired-end
+if [ -n "${FASTQ_2}" ] && [ "${FASTQ_2}" != "" ] && [ -f "${FASTQ_2}" ]; then
+    ALL_FILES="${ALL_FILES} ${FASTQ_2}"
+    echo "Paired-end detected"
+else
+    echo "Single-end detected"
+fi
+
+echo "Running FastQC on files for ${SAMPLE_NAME}..."
+echo "Files: ${ALL_FILES}"
+
+fastqc \
+    --threads ${THREADS} \
+    --outdir ${OUTPUT_DIR} \
+    ${ALL_FILES}
 
 echo "FastQC completed for ${SAMPLE_NAME} at $(date)"
 
